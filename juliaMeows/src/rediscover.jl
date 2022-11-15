@@ -127,10 +127,9 @@ function plot_isochrone_data(df_iso::DataFrame, df_s::DataFrame, file::String)
 end
 
 """Compute stream stars' self coordinates and add to dataframe."""
-function compute_in_selfCoords!(df, frame)
+function compute_in_selfCoords!(df::DataFrame, frame::Py)::Nothing
     sky_coords = coord.SkyCoord(ra=Py(df.ra)*u.deg, dec=Py(df.dec)*u.deg, pm_ra_cosdec=Py(df.pmra)*u.mas/u.yr, pm_dec=Py(df.pmdec)*u.mas/u.yr, frame="icrs")
     self_coords = sky_coords.transform_to(frame)
-    println(self_coords)
     df.ϕ₁ = pyconvert(Vector{Float64}, self_coords.phi1.deg)
     df.ϕ₂ = pyconvert(Vector{Float64}, self_coords.phi2.deg)
     df.μ₁cosϕ₂ = pyconvert(Vector{Float64}, self_coords.pm_phi1_cosphi2.value)
@@ -144,7 +143,7 @@ function plot_μ_window(df::DataFrame, file::String, window::Vector{Vector{Float
     size_pt = 72 .* size_inches
     fig = Figure(resolution = size_pt, fontsize = 30)
     plt = data(df)*mapping(:pmra =>L"$μ_{RA}$ [mas/yr]", :pmdec=>L"$μ_{Dec}$ [mas/yr]")*
-                            histogram(bins=200)
+                            histogram(bins=2000)
     ag = draw!(fig, plt, axis=(;limits=((window[1][1], window[1][2]),(window[2][1],window[2][2]))))
     colorbar!(fig[1,2], ag)
     electrondisplay(fig)
@@ -190,7 +189,7 @@ function plot_μ_selfFrame_window(df::DataFrame, df_track, file::String,  window
     size_inches = (4*3, 4*3)
     size_pt = 72 .* size_inches
     fig = Figure(resolution = size_pt, fontsize = 30)
-    plt = (data(df)*histogram(bins=700)+data(df_track))*mapping(:μ₁cosϕ₂ =>L"$μ_1cosϕ_2$ [mas/yr]", :μ₂=>L"$μ_2$ [mas/yr]")
+    plt = (data(df)*histogram(bins=2000)+data(df_track)*visual(markersize=1))*mapping(:μ₁cosϕ₂ =>L"$μ_1cosϕ_2$ [mas/yr]", :μ₂=>L"$μ_2$ [mas/yr]")
     ag = draw!(fig, plt, axis=(;limits=((window[1][1], window[1][2]),(window[2][1],window[2][2]))))
     colorbar!(fig[1,2], ag)
     electrondisplay(fig)
@@ -240,7 +239,7 @@ function mask_gc!(df_stream, df_gc)
 end
 
 """Filter with stream track on the sky."""
-function filter_stream_on_sky(df_stars::DataFrame, df_track::DataFrame, width::Float64)::DataFrame
+function filter_stream_on_sky!(df_stars::DataFrame, df_track::DataFrame, width::Float64)::DataFrame
     up = df_track.ϕ₂.+width
     down =  df_track.ϕ₂.-width
     poly_ϕ₁ = vcat(df_track.ϕ₁, reverse(df_track.ϕ₁), df_track.ϕ₁[1])
@@ -248,11 +247,11 @@ function filter_stream_on_sky(df_stars::DataFrame, df_track::DataFrame, width::F
     polygon = SVector.(poly_ϕ₁, poly_ϕ₂)
     points = [[df_stars.ϕ₁[i], df_stars.ϕ₂[i]] for i in 1:nrow(df_stars) ]
     inside = [inpolygon(p, polygon; in=true, on=false, out=false) for p in points]
-    return df_stars = df_stars[inside,:]
+    @subset!(df_stars, collect(inside))
 end
 
 """Filter with stream on μ-space."""
-function filter_stream_μ_space(df_stars::DataFrame, df_track::DataFrame, Δμ::Float64)::DataFrame
+function filter_stream_μ_space!(df_stars::DataFrame, df_track::DataFrame, Δμ::Float64)
     left = df_track.μ₁cosϕ₂.-Δμ
     right =  df_track.μ₁cosϕ₂.+Δμ
     poly_y = vcat(df_track.μ₂, reverse(df_track.μ₂), df_track.μ₂[1])
@@ -260,22 +259,64 @@ function filter_stream_μ_space(df_stars::DataFrame, df_track::DataFrame, Δμ::
     polygon = SVector.(poly_x, poly_y)
     points = [[df_stars.μ₁cosϕ₂[i], df_stars.μ₂[i]] for i in 1:nrow(df_stars) ]
     inside = [inpolygon(p, polygon; in=true, on=false, out=false) for p in points]
-    return df_stars = df_stars[inside,:]
+    @subset!(df_stars, collect(inside))
 end
 
-"""Filter with stream track in any of its dimensions."""
-function filter_with_track(df_stars::DataFrame, S::Symbol, σ::Float64)::DataFrame
+"""Non-mutating filter with stream track in any of its dimensions."""
+function filter_with_track(df_stars::DataFrame, df_track::DataFrame, S::Symbol, σ::Float64)::DataFrame
     if S == :ϕ₂
-        tᵥ = df_stars.ϕ₂
+        q🌠 = df_stars.ϕ₂
+        q_track = df_track.ϕ₂
     elseif S == :D
-        tᵥ .= 1.0 ./ df_stars.parallax
+        q🌠 = 1.0 ./ df_stars.parallax
+        q_track = df_track.D
     elseif S == :μ₁cosϕ₂
-        tᵥ = df_stars.μ₁cosϕ₂
+        q🌠 = df_stars.μ₁cosϕ₂
+        q_track = df_track.μ₁cosϕ₂
     elseif S == :μ₂
-        tᵥ = df_stars.μ₂
+        q🌠 = df_stars.μ₂
+        q_track = df_track.μ₂
     elseif S == :Vᵣ
-        tᵥ = df_stars.radial_velocity
+        q🌠 = df_stars.radial_velocity
+        q_track = df_track.Vᵣ
     end
+    up = q_track .+ σ
+    down =  q_track .- σ
+    poly_ϕ₁ = vcat(df_track.ϕ₁, reverse(df_track.ϕ₁), df_track.ϕ₁[1])
+    poly_q = vcat(down, reverse(up), down[1])
+    polygon = SVector.(poly_ϕ₁, poly_q)
+    points = [[df_stars.ϕ₁[i], q🌠[i]] for i in 1:nrow(df_stars) ]
+    inside = [inpolygon(p, polygon; in=true, on=false, out=false) for p in points]
+    return @subset(df_stars, collect(inside))
+end
+
+"""Mutating filter with stream track in any of its dimensions."""
+function filter_with_track!(df_stars::DataFrame, df_track::DataFrame, S::Symbol, σ::Float64)::Nothing
+    if S == :ϕ₂
+        q🌠 = df_stars.ϕ₂
+        q_track = df_track.ϕ₂
+    elseif S == :D
+        q🌠 = 1.0 ./ df_stars.parallax
+        q_track = df_track.D
+    elseif S == :μ₁cosϕ₂
+        q🌠 = df_stars.μ₁cosϕ₂
+        q_track = df_track.μ₁cosϕ₂
+    elseif S == :μ₂
+        q🌠 = df_stars.μ₂
+        q_track = df_track.μ₂
+    elseif S == :Vᵣ
+        q🌠 = df_stars.radial_velocity
+        q_track = df_track.Vᵣ
+    end
+    up = q_track .+ σ
+    down =  q_track .- σ
+    poly_ϕ₁ = vcat(df_track.ϕ₁, reverse(df_track.ϕ₁), df_track.ϕ₁[1])
+    poly_q = vcat(down, reverse(up), down[1])
+    polygon = SVector.(poly_ϕ₁, poly_q)
+    points = [[df_stars.ϕ₁[i], q🌠[i]] for i in 1:nrow(df_stars) ]
+    inside = [inpolygon(p, polygon; in=true, on=false, out=false) for p in points]
+    @subset!(df_stars, collect(inside))
+    return nothing
 end
 # %%
 
@@ -311,9 +352,8 @@ Vᵣ = pyconvert(Vector{Float64}, self_coords.radial_velocity)
 D_interp = linear_interpolation(ϕ₁, D)
 df_track = DataFrame(ra=pyconvert(Vector{Float64},track.track.ra.deg),
                      dec=pyconvert(Vector{Float64},track.track.dec.deg),
-                     ϕ₁=ϕ₁, ϕ₂=ϕ₂,
-                     μ₁cosϕ₂=μ₁cosϕ₂, μ₂=μ₂)
-@subset!(df_track, :ϕ₁ .> -20.)
+                     ϕ₁=ϕ₁, ϕ₂=ϕ₂, μ₁cosϕ₂=μ₁cosϕ₂, μ₂=μ₂, D=D, Vᵣ=Vᵣ)
+# @subset!(df_track, :ϕ₁ .> -20.)
 # %%
 
 """CMD filtering."""
@@ -384,15 +424,24 @@ compare_tracks("Fjorm-I21", "M68-P19")
 
 """Filter with stream track."""
 width = 1.
-window=[[-7.,7.],[-7.,7.]]
+window=[[-17.,17.],[-17.,17.]]
 Δμ = 1.
-df_filt = filter_stream_on_sky(df_stream, df_track, width)
-plot_sky_scatter_selfFrame(df_filt, "sky_scatter_frame_$(name_s)_filt.png", df_track)
-plot_μ(df_filt,"μ_$(name_s).png")
+filter_stream_on_sky!(df_stream, df_track, width)
+plot_sky_scatter_selfFrame(df_stream, "sky_scatter_frame_$(name_s)_filt.png", df_track)
+plot_μ(df_stream,"μ_$(name_s).png")
 plot_μ_scatter_selfFrame_window(df_stream, df_track, "μ_$(name_s).png", window)
-df_filt = filter_stream_μ_space(df_stream, df_track, Δμ )
+filter_stream_μ_space!(df_stream, df_track, Δμ )
+plot_μ(df_stream,"μ_$(name_s).png")
+plot_μ_scatter_selfFrame_window(df_stream, df_track, "μ_$(name_s).png", window)
+plot_sky_scatter_selfFrame(df_stream, "sky_scatter_frame_$(name_s)_filt.png", df_track)
+# %%
+
+"""Make different filters to the stream."""
+
+compute_in_selfCoords!(df_stream, frame)
+S = :ϕ₂
+σ = 2.0
+df_filt = filter_with_track(df_stream, df_track, S, σ)
 plot_μ(df_filt,"μ_$(name_s).png")
 plot_μ_scatter_selfFrame_window(df_filt, df_track, "μ_$(name_s).png", window)
-plot_sky_scatter_selfFrame(df_filt, "sky_scatter_frame_$(name_s)_filt.png", df_track)
-
-filter_with_track(df_stream, :μ₁, 1.0)
+plot_μ_selfFrame_window(df_filt, df_track, "μ_$(name_s).png", window)
