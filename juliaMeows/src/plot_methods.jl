@@ -5,6 +5,7 @@ using DataFrames, DataFramesMeta
 using CairoMakie, AlgebraOfGraphics
 using ElectronDisplay
 
+AoG = AlgebraOfGraphics
 
 """Plot sky histogram."""
 function plot_sky_histo(df::DataFrame, file::String)
@@ -46,11 +47,12 @@ end
 
 """Plot sky scatter in stream frame."""
 function plot_sky_scatter_selfFrame(df::DataFrame, file::String, df_track::DataFrame)
-    size_inches = (5*3, 3*3)
+    size_inches = (6*3, 3*3)
     size_pt = 72 .* size_inches
     fig = Figure(resolution = size_pt, fontsize = 30)
-    plt = (data(df)*visual(markersize=3)+data(df_track)*visual(markersize=1,color="red"))*mapping(:ϕ₁ =>L"ϕ_1 [°]", :ϕ₂=>L"ϕ_2 [°]")
-    ag = draw!(fig, plt, axis=(;limits=((nothing,nothing),(nothing,nothing))))
+    plt = (data(df)*visual(markersize=0.7, color=(:black,1))+data(df_track)*visual(markersize=1,color="red"))*mapping(:ϕ₁ =>L"ϕ_1 [°]", :ϕ₂=>L"ϕ_2 [°]")
+    plt = data(df)*visual(markersize=0.7)*mapping(:ϕ₁ =>L"ϕ_1 [°]", :ϕ₂=>L"ϕ_2 [°]")
+    ag = draw!(fig, plt, axis=(;limits=((nothing,nothing),(-10,10))))
     colorbar!(fig[1,2], ag)
     electrondisplay(fig)
     save(file, fig, pt_per_unit=1)
@@ -58,12 +60,12 @@ end
 
 """Plot sky with arrows for μ in stream frame."""
 function plot_sky_scatter_μ_arrows_selfFrame(df::DataFrame, file::String, df_track::DataFrame)
-    step = 300
+    step = 500
     size_inches = (3*3, 3*3)
     size_pt = 72 .* size_inches
     fig = Figure(resolution = size_pt, fontsize = 30)
     plt = (data(df)*visual(markersize=3)+data(df_track)*visual(markersize=1,color="red"))*mapping(:ϕ₁ =>L"ϕ_1 [°]", :ϕ₂=>L"ϕ_2 [°]")
-    ag = draw!(fig, plt, axis=(;limits=((-20,100),(-20,100))))
+    ag = draw!(fig, plt, axis=(;limits=((-20,20),(-20,20))))
     us = df.μ₁cosϕ₂./cos.(df.ϕ₂*π/180.)
     vs = df.μ₂
     strength = vec(sqrt.(us .^ 2 .+ vs .^ 2))
@@ -84,23 +86,20 @@ end
 """Plot sky with arrows for reflex-corrected μ in stream frame."""
 function plot_sky_scatter_μ_arrows_corr_selfFrame(df::DataFrame, file::String, df_track::DataFrame)
     step = 300
-    size_inches = (3*3, 3*3)
+    size_inches = (5*3, 2*3)
     size_pt = 72 .* size_inches
     fig = Figure(resolution = size_pt, fontsize = 30)
     plt = (data(df)*visual(markersize=3)+data(df_track)*visual(markersize=1,color="red"))*mapping(:ϕ₁ =>L"ϕ_1 [°]", :ϕ₂=>L"ϕ_2 [°]")
-    ag = draw!(fig, plt, axis=(;limits=((-20,100),(-20,100))))
-    us = df.μ₁cosϕ₂_corr./cos.(df.ϕ₂*π/180.)
+    plt = (data(df)*visual(markersize=3))*mapping(:ϕ₁ =>L"ϕ_1 [°]", :ϕ₂=>L"ϕ_2 [°]")
+    ag = draw!(fig, plt)#, axis=(;limits=((0,30),(-10,10))))
+    us = df.μ₁_corr
     vs = df.μ₂_corr
     strength = vec(sqrt.(us .^ 2 .+ vs .^ 2))
-    us .= us #./strength
-    vs .= vs #./strength
-    arrows!(df.ϕ₁, df.ϕ₂, us, vs, arrowsize = strength/5., lengthscale = 0.3)
-    us = (df_track.μ₁cosϕ₂_corr./cos.(df_track.ϕ₂*π/180.))[begin:step:end]
+    arrows!(df.ϕ₁, df.ϕ₂, us, vs, arrowsize = strength, lengthscale = 0.2)
+    us = df_track.μ₁_corr[begin:step:end]
     vs = df_track.μ₂_corr[begin:step:end]
     strength = vec(sqrt.(us .^ 2 .+ vs .^ 2))
-    us .= us #./strength
-    vs .= vs #./strength
-    arrows!(df_track.ϕ₁[begin:step:end], df_track.ϕ₂[begin:step:end], us, vs, arrowsize = strength/5., lengthscale = 0.3, color="violet")
+    arrows!(df_track.ϕ₁[begin:step:end], df_track.ϕ₂[begin:step:end], us, vs, arrowsize = strength, lengthscale = 0.5, color="cyan")
     colorbar!(fig[1,2], ag)
     electrondisplay(fig)
     save(file, fig, pt_per_unit=1)
@@ -207,8 +206,65 @@ function plot_μ_scatter_selfFrame_window(df::DataFrame, df_track, file::String,
     size_inches = (3*3, 3*3)
     size_pt = 72 .* size_inches
     fig = Figure(resolution = size_pt, fontsize = 30)
-    plt = (data(df)*visual(markersize=2)+data(df_track)*visual(markersize=2,color="red"))*mapping(:μ₁cosϕ₂ =>L"$μ_1cosϕ_2$ [mas/yr]", :μ₂=>L"$μ_2$ [mas/yr]")
+    plt = (data(df)*visual(markersize=2)+data(df_track)*visual(markersize=0.5,color="red"))*mapping(:μ₁ =>L"$μ_1$ [mas/yr]", :μ₂=>L"$μ_2$ [mas/yr]")
     ag = draw!(fig, plt, axis=(;limits=((window[1][1], window[1][2]),(window[2][1],window[2][2]))))
+    colorbar!(fig[1,2], ag)
+    electrondisplay(fig)
+    save(file, fig, pt_per_unit=1)
+end
+
+function plot_μ_corr_scatter_selfFrame(df::DataFrame, df_track, file::String)
+    size_inches = (3*3, 3*3)
+    size_pt = 72 .* size_inches
+    fig = Figure(resolution = size_pt, fontsize = 30)
+    plt = (data(df)*visual(markersize=3, color=(:black, 0.15))+data(df_track)*visual(markersize=0.5,color="red"))*mapping(:μ₁_corr =>L"$μ_1$ [mas/yr]", :μ₂_corr=>L"$μ_2$ [mas/yr]")
+    # plt = data(df)*visual(markersize=6, color=(:black, 0.15))*mapping(:μ₁_corr =>L"$μ_1$ [mas/yr]", :μ₂_corr=>L"$μ_2$ [mas/yr]")
+    ag = draw!(fig, plt)
+    colorbar!(fig[1,2], ag)
+    electrondisplay(fig)
+    save(file, fig, pt_per_unit=1)
+end
+
+function plot_μ_corr_scatter_selfFrame_window(df::DataFrame, df_track, file::String,  window::Vector{Vector{Float64}})
+    size_inches = (3*3, 3*3)
+    size_pt = 72 .* size_inches
+    fig = Figure(resolution = size_pt, fontsize = 30)
+    plt = (data(df)*visual(markersize=3, color=(:black, 0.15))+data(df_track)*visual(markersize=0.5,color="red"))*mapping(:μ₁_corr =>L"$μ_1$ [mas/yr]", :μ₂_corr=>L"$μ_2$ [mas/yr]")
+    # plt = data(df)*visual(markersize=6, color=(:black, 0.15))*mapping(:μ₁_corr =>L"$μ_1$ [mas/yr]", :μ₂_corr=>L"$μ_2$ [mas/yr]")
+    ag = draw!(fig, plt, axis=(;limits=((window[1][1], window[1][2]),(window[2][1],window[2][2]))))
+    colorbar!(fig[1,2], ag)
+    electrondisplay(fig)
+    save(file, fig, pt_per_unit=1)
+end
+
+function plot_μ_corr_histo_selfFrame_window(df::DataFrame, df_track, file::String,  window::Vector{Vector{Float64}})
+    size_inches = (3*3, 3*3)
+    size_pt = 72 .* size_inches
+    fig = Figure(resolution = size_pt, fontsize = 30)
+    plt = (data(df)*AoG.density()+data(df_track)*visual(markersize=0.5,color="red"))*mapping(:μ₁cosϕ₂_corr =>L"$μ_1$ [mas/yr]", :μ₂_corr=>L"$μ_2$ [mas/yr]")
+    ag = draw!(fig, plt, axis=(;limits=((window[1][1], window[1][2]),(window[2][1],window[2][2]))))
+    colorbar!(fig[1,2], ag)
+    electrondisplay(fig)
+    save(file, fig, pt_per_unit=1)
+end
+
+function plot_μ_corr_track_selfFrame(df_track, file::String)
+    size_inches = (3*3, 3*3)
+    size_pt = 72 .* size_inches
+    fig = Figure(resolution = size_pt, fontsize = 30)
+    plt = data(df_track)*visual(markersize=2,color="red")*mapping(:μ₁_corr =>L"$μ_1$ [mas/yr]", :μ₂_corr=>L"$μ_2$ [mas/yr]")
+    ag = draw!(fig, plt)
+    colorbar!(fig[1,2], ag)
+    electrondisplay(fig)
+    save(file, fig, pt_per_unit=1)
+end
+
+function plot_μ_corr_track_selfFrame(df::DataFrame, df_track, file::String)
+    size_inches = (3*3, 3*3)
+    size_pt = 72 .* size_inches
+    fig = Figure(resolution = size_pt, fontsize = 30)
+    plt = data(df_track)*visual(markersize=1,color="red")*mapping(:μ₁_corr =>L"$μ_1$ [mas/yr]", :μ₂_corr=>L"$μ_2$ [mas/yr]")
+    ag = draw!(fig, plt)
     colorbar!(fig[1,2], ag)
     electrondisplay(fig)
     save(file, fig, pt_per_unit=1)
