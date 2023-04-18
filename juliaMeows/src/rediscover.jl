@@ -68,11 +68,13 @@ dm.reflex_correct!(df_track, self_frame)
 """CMD filtering."""
 iso_file = "data/products/iso_stream_$(name_s).csv"
 filters = "UBVRIplus"
-df_iso = dm.get_isochrone(11.2e9, -2.20, filters, "linear")
+df_iso = dm.get_isochrone(11.2e9, -2.2, filters, "linear")
 CSV.write(iso_file, df_iso)
 # df_iso = DataFrame(CSV.File(iso_file))
 df_stream.color = df_stream.bp - df_stream.rp
-dm.filter_cmd!(df_stream, df_iso)
+df_iso.color = df_iso.bp - df_iso.rp
+df_stream  = dm.filter_cmd(df_stream, df_iso)
+nrow(df_stream)
 #df_cmd = dm.filter_cmd(df_stream, df_iso)
 # %%
 
@@ -93,7 +95,7 @@ df_stream.D = D_interp.(df_stream.ϕ₁)
 
 """Apply different filters to the stream."""
 file_filt = "data/products/filt_GaiaDR3-$(name_t).fits"
-σ = 0.7
+σ = 0.2
 
 S = :μ₁_corr
 df_filt = dm.filter_with_track(df_stream, df_track, S, σ)
@@ -109,7 +111,9 @@ df_filt  = dm.filter_with_ϕ₂(df_stream, σ)
 
 df_filt  = dm.filter_PWB18(df_stream)
 
-box = [[6.,10.],[-3.8,-2.2]]
+
+box = [[3.,12.],[-1,0]]
+box = [[6.5,9.],[-3.8,-2.5]]
 df_box = dm.filter_box_μ(df_stream, box)
 
 CSV.write(file_filt, df_filt)
@@ -119,15 +123,18 @@ df_filt = CSV.File(file_filt) |> DataFrame
 """Do some plots."""
 
 pm.plot_sky_scatter_selfFrame(df_box, "plots/dr2.pdf", df_track)
-pm.plot_sky_scatter_μ_arrows_selfFrame(df_stream[begin:100:end,:], "plots/sky_scatter_frame_μ_$(name_s)_filt.png", df_track)
+pm.plot_sky_scatter_μ_arrows_selfFrame(df_filt[begin:1:end,:], "plots/sky_scatter_frame_μ_$(name_s)_filt.png", df_track)
 pm.plot_sky_scatter_μ_arrows_corr_selfFrame(df_filt[begin:1:end,:], "plots/sky_scatter_frame_μ_coor_$(name_s)_filt.png", df_track )
 
-window = [[0.,15.],[-5.,0.]]
+window = [[0.,15.],[-5.,2.]]
 pm.plot_μ_scatter_selfFrame_window(df_filt, df_track, "plots/test.png",  window)
 pm.plot_μ_corr_scatter_selfFrame(df_filt, df_track, "plots/test.png")
-pm.plot_μ_corr_scatter_selfFrame_window(df_box, df_track, "plots/μ_refCorr_selfFrame_GD-1_DR3.png",  window)
+pm.plot_μ_corr_scatter_selfFrame_window(df_filt, df_track, "plots/μ_refCorr_selfFrame_GD-1_DR3.png",  window)
 pm.plot_μ_corr_histo_selfFrame_window(df_filt, df_track, "plots/μ_refCorr_selfFrame_GD-1.png",  window)
 pm.plot_μ_corr_track_selfFrame(df_track, "plots/test.png")
 
+
+pm.plot_isochrone_data(df_iso, df_box, "plots/test_cmd.png")
+pm.plot_cmd_histo(df_filt, "plots/test_cmd.png")
 # %%
 GC.gc()

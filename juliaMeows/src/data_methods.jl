@@ -46,9 +46,9 @@ function curation!(df::DataFrame)::Nothing
 end
 
 """CMD filtering (non-mutating)."""
-function filter_cmd(df_stream::DataFrame, df_iso::DataFrame)::DataFrame
-    phase_mask = 0 .<= df_iso.phase .< 3
-    df_iso = df_iso[phase_mask,:]
+function filter_cmd(df_stream::DataFrame, df_iso::DataFrame)
+    # phase_mask = 0 .<= df_iso.phase .< 5
+    # df_iso = df_iso[phase_mask,:]
     df_iso.color = df_iso.Gaia_BP_EDR3 - df_iso.Gaia_RP_EDR3
     df_iso.left = df_iso.color .- 0.1
     df_iso.right = df_iso.color .+ 0.1
@@ -81,6 +81,7 @@ function filter_cmd!(df_stream::DataFrame, df_iso::DataFrame)::Nothing
     points = [[df_stream.color[i], df_stream.g_abs[i]] for i in 1:nrow(df_stream) ]
     inside = [inpolygon(p, polygon; in=true, on=false, out=false) for p in points]
     df_stream = df_stream[inside,:]
+    print("inside function nrow=$(nrow(df_stream))")
     return nothing
 end
 
