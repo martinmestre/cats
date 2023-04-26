@@ -167,11 +167,11 @@ function compare_tracks(stream₁::String, stream₂::String)
     electrondisplay(fig)
 end
 
-function mask_gc!(df_stream, df_gc)
+function mask_gc!(df_stream, df_gc, radius)
     for i in 1:nrow(df_gc)
         Δra = df_stream.ra.-df_gc.ra[i]
         Δdec = df_stream.dec.-df_gc.dec[i]
-        bool_gc = sqrt.(Δra.^2+Δdec.^2) .> 0.5
+        bool_gc = sqrt.(Δra.^2+Δdec.^2) .> radius
         @subset!(df_stream, collect(bool_gc))
     end
 end

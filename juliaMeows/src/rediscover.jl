@@ -42,7 +42,7 @@ GC.gc()
 """Remove known globular clusters."""
 df_gc = DataFrame(CSV.File("data/gc_catalog/Baumgardt/orbits_table.txt", delim=" ", ignorerepeated=true))
 dm.rename!(df_gc,[:RA, :DEC] .=> [:ra, :dec])
-dm.mask_gc!(df_stream, df_gc)
+dm.mask_gc!(df_stream, df_gc, 0.5)
 # %%
 
 """Load galstreams data."""
