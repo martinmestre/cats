@@ -70,12 +70,21 @@ iso_file = "data/products/iso_stream_$(name_s).csv"
 filters = "UBVRIplus"
 df_iso = dm.get_isochrone(11.2e9, -2.2, filters, "linear")
 CSV.write(iso_file, df_iso)
-# df_iso = DataFrame(CSV.File(iso_file))
+df_iso = DataFrame(CSV.File(iso_file))
 df_stream.color = df_stream.bp - df_stream.rp
-df_iso.color = df_iso.bp - df_iso.rp
-df_stream  = dm.filter_cmd(df_stream, df_iso)
-nrow(df_stream)
-#df_cmd = dm.filter_cmd(df_stream, df_iso)
+df_stream  = dm.filter_cmd(df_stream, df_iso, 0.1)
+println("Number of rows in filtered(df_stream) = $(nrow(df_stream))")
+# %%
+
+"""Build a dataframe with members of M68 globular cluster."""
+df_c = @subset(df_gc, :Cluster.=="NGC_4590")
+df_m68 = DataFrame(f[2])
+@subset!(df_m68, (:ra .- df_c.ra).^2 .+ (:dec .- df_c.dec).^2 .< 0.5^2 )
+dm.compute_in_selfCoords!(df_m68, self_frame)
+@subset!(df_m68, minimum(df_track.ϕ₁) .< :ϕ₁ .< maximum(df_track.ϕ₁))
+df_m68.D = D_interp.(df_m68.ϕ₁)
+dm.reflex_correct!(df_m68, self_frame)
+
 # %%
 
 """Curation."""
@@ -83,8 +92,8 @@ nrow(df_stream)
 # dm.curation!(df_cmd)
 # df_stream.D .= 1.0 ./ df_stream.parallax # not good proxi
 # D_linGD1(x) = 0.05*x+10.0
-@subset!(df_stream, -30 .< :ϕ₁ .< 50)
-df_stream.D = D_linGD1.(df_stream.ϕ₁)
+@subset!(df_stream, minimum(df_track.ϕ₁) .< :ϕ₁ .< maximum(df_track.ϕ₁))
+# df_stream.D = D_linGD1.(df_stream.ϕ₁)
 df_stream.D = D_interp.(df_stream.ϕ₁)
 @subset!(df_stream, -9 .< :μ₁_corr .< -4.5)
 @subset!(df_stream, -1.7 .< :μ₂_corr .< 1)
@@ -122,17 +131,19 @@ df_filt = CSV.File(file_filt) |> DataFrame
 
 """Do some plots."""
 
-pm.plot_sky_scatter_selfFrame(df_box, "plots/dr2.pdf", df_track)
+pm.plot_sky_histo_gc(df_stream, "plots/dr3.pdf", df_gc)
+pm.plot_sky_scatter_selfFrame_gc(df_stream, "plots/dr3.pdf", df_track, df_m68)
 pm.plot_sky_scatter_μ_arrows_selfFrame(df_filt[begin:1:end,:], "plots/sky_scatter_frame_μ_$(name_s)_filt.png", df_track)
 pm.plot_sky_scatter_μ_arrows_corr_selfFrame(df_filt[begin:1:end,:], "plots/sky_scatter_frame_μ_coor_$(name_s)_filt.png", df_track )
 
 window = [[0.,15.],[-5.,2.]]
 pm.plot_μ_scatter_selfFrame_window(df_filt, df_track, "plots/test.png",  window)
-pm.plot_μ_corr_scatter_selfFrame(df_filt, df_track, "plots/test.png")
-pm.plot_μ_corr_scatter_selfFrame_window(df_filt, df_track, "plots/μ_refCorr_selfFrame_GD-1_DR3.png",  window)
+pm.plot_μ_corr_scatter_selfFrame(df_stream, df_track, "plots/test.png")
+pm.plot_μ_corr_scatter_selfFrame_window(df_stream, df_track, "plots/μ_refCorr_selfFrame_GD-1_DR3.png", window)
 pm.plot_μ_corr_histo_selfFrame_window(df_filt, df_track, "plots/μ_refCorr_selfFrame_GD-1.png",  window)
 pm.plot_μ_corr_track_selfFrame(df_track, "plots/test.png")
-
+window = [[-10.,15.],[-10.,10.]]
+pm.plot_μ_corr_scatter_selfFrame_gc(df_stream, df_track, df_m68, window, "plots/test.png")
 
 pm.plot_isochrone_data(df_iso, df_box, "plots/test_cmd.png")
 pm.plot_cmd_histo(df_filt, "plots/test_cmd.png")

@@ -46,12 +46,12 @@ function curation!(df::DataFrame)::Nothing
 end
 
 """CMD filtering (non-mutating)."""
-function filter_cmd(df_stream::DataFrame, df_iso::DataFrame)
+function filter_cmd(df_stream::DataFrame, df_iso::DataFrame, Δ_c::Real)
     # phase_mask = 0 .<= df_iso.phase .< 5
     # df_iso = df_iso[phase_mask,:]
     df_iso.color = df_iso.Gaia_BP_EDR3 - df_iso.Gaia_RP_EDR3
-    df_iso.left = df_iso.color .- 0.1
-    df_iso.right = df_iso.color .+ 0.1
+    df_iso.left = df_iso.color .- Δ_c
+    df_iso.right = df_iso.color .+ Δ_c
     pol_x = vcat(df_iso.left, reverse(df_iso.right), df_iso.left[1])
     temp = df_iso.Gaia_G_EDR3
     pol_y = vcat(temp, reverse(temp), temp[1])
@@ -65,12 +65,12 @@ function filter_cmd(df_stream::DataFrame, df_iso::DataFrame)
 end
 
 """CMD filtering (Mutating)."""
-function filter_cmd!(df_stream::DataFrame, df_iso::DataFrame)::Nothing
+function filter_cmd!(df_stream::DataFrame, df_iso::DataFrame, Δ_c)::Nothing
     phase_mask = 0 .<= df_iso.phase .< 3
     df_iso = df_iso[phase_mask,:]
     df_iso.color = df_iso.Gaia_BP_EDR3 - df_iso.Gaia_RP_EDR3
-    df_iso.left = df_iso.color .- 0.1
-    df_iso.right = df_iso.color .+ 0.1
+    df_iso.left = df_iso.color .- Δ_c
+    df_iso.right = df_iso.color .+ Δ_c
     pol_x = vcat(df_iso.left, reverse(df_iso.right), df_iso.left[1])
     temp = df_iso.Gaia_G_EDR3
     pol_y = vcat(temp, reverse(temp), temp[1])
