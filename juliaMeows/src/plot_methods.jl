@@ -258,7 +258,7 @@ function plot_μ_corr_scatter_selfFrame_gc(df::DataFrame, df_track, df_gc, windo
     size_pt = 72 .* size_inches
     fig = Figure(resolution = size_pt, fontsize = 30)
     plt = (data(df)*visual(markersize=1, color=(:black, 0.5))+data(df_track)*visual(markersize=0.5,color="red"))*mapping(:μ₁_corr =>L"$μ_1$ [mas/yr]", :μ₂_corr=>L"$μ_2$ [mas/yr]")
-    plt_gc = data(df_gc)*visual(markersize=1, color=(:green, 1))*mapping(:μ₁_corr =>L"$μ_1$ [mas/yr]", :μ₂_corr=>L"$μ_2$ [mas/yr]")
+    plt_gc = data(df_gc)*visual(markersize=5, color=(:green, 1))*mapping(:μ₁_corr =>L"$μ_1$ [mas/yr]", :μ₂_corr=>L"$μ_2$ [mas/yr]")
     ag = draw!(fig, plt+plt_gc, axis=(;limits=((window[1][1], window[1][2]),(window[2][1],window[2][2]))))
     colorbar!(fig[1,2], ag)
     electrondisplay(fig)

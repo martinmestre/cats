@@ -84,11 +84,18 @@ dm.compute_in_selfCoords!(df_m68, self_frame)
 @subset!(df_m68, minimum(df_track.ϕ₁) .< :ϕ₁ .< maximum(df_track.ϕ₁))
 df_m68.D = D_interp.(df_m68.ϕ₁)
 dm.reflex_correct!(df_m68, self_frame)
+# %%
 
+"""Load M68 dataframe with membership probabilities from Vasiliev & Baumgardt 2021."""
+df_m68 = DataFrame(CSV.File("data/gc_catalog/Vasiliev/catalogues/NGC_4590_M_68.txt", delim="\t", ignorerepeated=true))
+rename!(df_m68, Dict("source_id     "=>"source_id", "ra      "=>"ra", "dec     "=>"dec", "plx"=>"parallax"))
+dm.compute_in_selfCoords!(df_m68, self_frame)
+@subset!(df_m68, minimum(df_track.ϕ₁) .< :ϕ₁ .< maximum(df_track.ϕ₁))
+df_m68.D = D_interp.(df_m68.ϕ₁)
+dm.reflex_correct!(df_m68, self_frame)
 # %%
 
 """Curation."""
-
 # dm.curation!(df_cmd)
 # df_stream.D .= 1.0 ./ df_stream.parallax # not good proxi
 # D_linGD1(x) = 0.05*x+10.0
@@ -122,7 +129,8 @@ df_filt  = dm.filter_PWB18(df_stream)
 
 
 box = [[3.,12.],[-1,0]]
-box = [[6.5,9.],[-3.8,-2.5]]
+box = [[6.,7.],[-1,0.]]
+box = [[2.,8.],[-3.,3.]]
 df_box = dm.filter_box_μ(df_stream, box)
 
 CSV.write(file_filt, df_filt)
@@ -131,8 +139,9 @@ df_filt = CSV.File(file_filt) |> DataFrame
 
 """Do some plots."""
 
-pm.plot_sky_histo_gc(df_stream, "plots/dr3.pdf", df_gc)
-pm.plot_sky_scatter_selfFrame_gc(df_stream, "plots/dr3.pdf", df_track, df_m68)
+pm.plot_sky_histo_gc(df_box, "plots/dr3.pdf", df_gc)
+pm.plot_sky_scatter_selfFrame(df_box, "plots/dr3.pdf", df_track)
+pm.plot_sky_scatter_selfFrame_gc(df_m68, "plots/dr3.pdf", df_track, df_m68)
 pm.plot_sky_scatter_μ_arrows_selfFrame(df_filt[begin:1:end,:], "plots/sky_scatter_frame_μ_$(name_s)_filt.png", df_track)
 pm.plot_sky_scatter_μ_arrows_corr_selfFrame(df_filt[begin:1:end,:], "plots/sky_scatter_frame_μ_coor_$(name_s)_filt.png", df_track )
 
@@ -142,9 +151,9 @@ pm.plot_μ_corr_scatter_selfFrame(df_stream, df_track, "plots/test.png")
 pm.plot_μ_corr_scatter_selfFrame_window(df_stream, df_track, "plots/μ_refCorr_selfFrame_GD-1_DR3.png", window)
 pm.plot_μ_corr_histo_selfFrame_window(df_filt, df_track, "plots/μ_refCorr_selfFrame_GD-1.png",  window)
 pm.plot_μ_corr_track_selfFrame(df_track, "plots/test.png")
-window = [[-10.,15.],[-10.,10.]]
-pm.plot_μ_corr_scatter_selfFrame_gc(df_stream, df_track, df_m68, window, "plots/test.png")
-
+window = [[2.,8.],[-3.,3.]]
+pm.plot_μ_corr_scatter_selfFrame_gc(df_box, df_track, @subset(df_m68,:memberprob .> 0.9), window, "plots/test.png")
+pm.plot_μ_corr_scatter_selfFrame_gc(df_stream, df_track, df_m68, "plots/test.png")
 pm.plot_isochrone_data(df_iso, df_box, "plots/test_cmd.png")
 pm.plot_cmd_histo(df_filt, "plots/test_cmd.png")
 # %%
