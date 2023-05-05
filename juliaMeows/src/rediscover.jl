@@ -72,7 +72,7 @@ df_iso = dm.get_isochrone(11.2e9, -2.2, filters, "linear")
 CSV.write(iso_file, df_iso)
 df_iso = DataFrame(CSV.File(iso_file))
 df_stream.color = df_stream.bp - df_stream.rp
-df_stream  = dm.filter_cmd(df_stream, df_iso, 0.1)
+dm.filter_cmd!(df_stream, df_iso, 0.1)
 println("Number of rows in filtered(df_stream) = $(nrow(df_stream))")
 # %%
 
