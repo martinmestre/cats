@@ -138,8 +138,8 @@ df_filt = CSV.File(file_filt) |> DataFrame
 # %%
 
 """Do some plots."""
-
-pm.plot_sky_histo_gc(df_box, "plots/dr3.pdf", df_gc)
+window=((90,360),(-90,90))
+pm.plot_sky_histo_gc(df_box, "plots/dr3.pdf", df_gc, window)
 pm.plot_sky_scatter_selfFrame(df_box, "plots/dr3.pdf", df_track)
 pm.plot_sky_scatter_selfFrame_gc(df_m68, "plots/dr3.pdf", df_track, df_m68)
 pm.plot_sky_scatter_μ_arrows_selfFrame(df_filt[begin:1:end,:], "plots/sky_scatter_frame_μ_$(name_s)_filt.png", df_track)

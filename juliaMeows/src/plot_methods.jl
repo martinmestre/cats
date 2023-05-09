@@ -21,13 +21,13 @@ function plot_sky_histo(df::DataFrame, file::String)
 end
 
 """Plot sky_histogram plus globular cluster."""
-function plot_sky_histo_gc(df::DataFrame, file::String, df_gc)
+function plot_sky_histo_gc(df::DataFrame, file::String, df_gc::DataFrame, window::Tuple{Tuple{Number,Number}, Tuple{Number,Number}})
     size_inches = (5*3, 3*3)
     size_pt = 72 .* size_inches
     fig = Figure(resolution = size_pt, fontsize = 30)
     plt = (data(df)*histogram(bins=200)+data(df_gc)*visual(color="red"))*mapping(:ra =>L"RA [$°$]", :dec=>L"Dec [$°$]")
     plt_M68 = data(@subset(df_gc, :Cluster.=="NGC_4590"))*mapping(:ra =>L"RA [$°$]", :dec=>L"Dec [$°$]")*visual(color="black")
-    ag = draw!(fig, plt+plt_M68, axis=(;limits=((180,270),(-30,80))))
+    ag = draw!(fig, plt+plt_M68, axis=(;limits=window))
     colorbar!(fig[1,2], ag)
     electrondisplay(fig)
     save(file, fig, pt_per_unit=1)
